@@ -1,0 +1,4 @@
+H:\bistportfoytakip\serviceexe\appsettings.Development.json
+H:\bistportfoytakip\serviceexe\appsettings.json
+H:\bistportfoytakip\serviceexe\BistPriceService.pdb
+H:\bistportfoytakip\serviceexe\BistPriceService.exe
