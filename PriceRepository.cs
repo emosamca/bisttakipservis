@@ -227,6 +227,17 @@ public sealed class PriceRepository
 
     // ---- TEFAS fonları (fund_prices) ----
 
+    /// <summary>
+    /// fund_prices'a price_old kolonunu ekler (idempotent). Fiyat 0 geldiğinde (fon o
+    /// gün henüz fiyatlanmamış) mevcut price buraya taşınır; web tarafı price=0 iken
+    /// bu kolondan (bir önceki geçerli fiyat) gösterim yapabilir.
+    /// </summary>
+    public async Task EnsureFundPriceOldColumnAsync(string table, CancellationToken ct)
+    {
+        await using var cmd = _dataSource.CreateCommand($"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS price_old NUMERIC");
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
     /// <summary>fund_prices tablosundaki fon kodlarını döndürür (kolon: code).</summary>
     public async Task<IReadOnlyList<string>> GetFundCodesAsync(string table, CancellationToken ct)
     {
@@ -266,19 +277,38 @@ public sealed class PriceRepository
         _logger.LogInformation("[FON] yeni-fon trigger'ı ({Channel}) hazır.", o.NewFundChannel);
     }
 
-    /// <summary>Bir fonun (code) adını ve fiyatını UPSERT eder.</summary>
+    /// <summary>Bir fonun (code) adını ve fiyatını UPSERT eder. price_old da aynı değere yazılır.</summary>
     public async Task UpsertFundAsync(string table, string code, string title, decimal price, CancellationToken ct)
     {
         var sql = $@"
-            INSERT INTO {table} (code, title, price, updated_at)
-            VALUES (@code, @title, @price, now())
+            INSERT INTO {table} (code, title, price, price_old, updated_at)
+            VALUES (@code, @title, @price, @price, now())
             ON CONFLICT (code)
-            DO UPDATE SET title = EXCLUDED.title, price = EXCLUDED.price, updated_at = now()";
+            DO UPDATE SET title = EXCLUDED.title, price = EXCLUDED.price, price_old = EXCLUDED.price, updated_at = now()";
 
         await using var cmd = _dataSource.CreateCommand(sql);
         cmd.Parameters.AddWithValue("code", code);
         cmd.Parameters.AddWithValue("title", title);
         cmd.Parameters.AddWithValue("price", price);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
+    /// <summary>
+    /// Fon o gün için henüz fiyatlanmamışken (fiyat 0) çağrılır: mevcut price değeri
+    /// price_old'a taşınır, price 0 olarak yazılır. Yeni (hiç satırı olmayan) fon için
+    /// taşınacak eski fiyat olmadığından price_old da 0 ile başlar.
+    /// </summary>
+    public async Task MarkFundPriceZeroAsync(string table, string code, string title, CancellationToken ct)
+    {
+        var sql = $@"
+            INSERT INTO {table} (code, title, price, price_old, updated_at)
+            VALUES (@code, @title, 0, 0, now())
+            ON CONFLICT (code)
+            DO UPDATE SET title = EXCLUDED.title, price_old = {table}.price, price = 0, updated_at = now()";
+
+        await using var cmd = _dataSource.CreateCommand(sql);
+        cmd.Parameters.AddWithValue("code", code);
+        cmd.Parameters.AddWithValue("title", title);
         await cmd.ExecuteNonQueryAsync(ct);
     }
 }

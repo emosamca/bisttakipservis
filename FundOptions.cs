@@ -2,8 +2,8 @@ namespace BistPriceService;
 
 /// <summary>
 /// TEFAS fon fiyatı ayarları. fund_prices tablosundaki kodlar (izlenen fonlar) okunur,
-/// her biri hangikredi.com üzerinden çekilip aynı tabloya yazılır. TEFAS fiyatları
-/// günde bir açıklandığı için günde birkaç kez taramak yeterli.
+/// her biri tefas.gov.tr'nin resmi JSON API'sinden çekilip aynı tabloya yazılır. TEFAS
+/// fiyatları günde bir açıklandığı için günde birkaç kez taramak yeterli.
 /// </summary>
 public sealed class FundOptions
 {
@@ -21,6 +21,13 @@ public sealed class FundOptions
 
     /// <summary>Fonlar arası bekleme (ms) — kaynağı yormamak için.</summary>
     public int PerFundDelayMs { get; set; } = 500;
+
+    /// <summary>
+    /// Günlük taramada fiyatı gelmeyen (henüz açıklanmamış) fonlar için tekrar deneme
+    /// aralığı (dakika). Fiyat gelene kadar bu aralıkla denenir; fiyat gelince o fon
+    /// için tekrar denemeler durur, bir sonraki DailyRunTime'a kadar beklenir.
+    /// </summary>
+    public int RetryIntervalMinutes { get; set; } = 5;
 
     /// <summary>Yeni fon eklenince tetiklenecek NOTIFY kanalı.</summary>
     public string NewFundChannel { get; set; } = "fund_new";

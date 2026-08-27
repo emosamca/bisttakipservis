@@ -6,8 +6,8 @@ namespace BistPriceService;
 
 /// <summary>
 /// fund_prices'a yeni fon eklenince NOTIFY kanalını (fund_new) dinler ve o fonun
-/// adını + fiyatını hangikredi.com üzerinden anında çekip yazar. Periyodik
-/// FundWorker'dan bağımsız çalışır.
+/// adını + fiyatını tefas.gov.tr'nin resmi API'si üzerinden anında çekip yazar.
+/// Periyodik FundWorker'dan bağımsız çalışır.
 /// </summary>
 public sealed class NewFundListener : BackgroundService
 {
@@ -89,10 +89,15 @@ public sealed class NewFundListener : BackgroundService
                 {
                     _logger.LogInformation("[FON] yeni fon algılandı: {Code}. Anında çekiliyor.", code);
                     var quote = await _client.GetFundAsync(code, ct);
-                    if (quote is { } q)
+                    if (quote is { Price: > 0 } q)
                     {
                         await _repository.UpsertFundAsync(_opt.Table, code, q.Title, q.Price, ct);
                         _logger.LogInformation("[FON] yeni fon {Code} = {Price} ({Title}) yazıldı.", code, q.Price, q.Title);
+                    }
+                    else if (quote is { Price: 0 } q0)
+                    {
+                        await _repository.MarkFundPriceZeroAsync(_opt.Table, code, q0.Title, ct);
+                        _logger.LogWarning("[FON] yeni fon {Code} henüz fiyatlanmamış (0); bir sonraki günlük taramada tekrar denenecek.", code);
                     }
                     else
                     {

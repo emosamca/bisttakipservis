@@ -85,15 +85,15 @@ builder.Services.AddHttpClient<BinanceClient>((sp, client) =>
 });
 builder.Services.AddHostedService<CryptoWorker>();
 
-// TEFAS fonları (hangikredi.com üzerinden, Imperva'sız) — günde birkaç kez.
+// TEFAS fonları (tefas.gov.tr resmi JSON API'si üzerinden) — günde birkaç kez.
 builder.Services.AddHttpClient<FundClient>((sp, client) =>
 {
     var opts = sp.GetRequiredService<IOptions<PriceFetchOptions>>().Value;
-    client.BaseAddress = new Uri("https://www.hangikredi.com/");
+    client.BaseAddress = new Uri("https://www.tefas.gov.tr/");
     client.Timeout = TimeSpan.FromSeconds(Math.Max(5, opts.RequestTimeoutSeconds));
     client.DefaultRequestHeaders.UserAgent.ParseAdd(
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36");
-    client.DefaultRequestHeaders.Accept.ParseAdd("text/html");
+    client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
 });
 builder.Services.AddHostedService<FundWorker>();
 builder.Services.AddHostedService<NewFundListener>();
